@@ -286,7 +286,7 @@ export default async function OverviewPage() {
         ) : (
           <ul className="divide-y divide-line/60">
             {tokens.map((token) => (
-              <li key={token.code} className="flex items-center gap-3 py-3.5">
+              <Link  href={`/app/wallet`} key={token.code} className="flex items-center gap-3 py-3.5">
                 {/* The chain badge is the distinction, on the two rows that need
                     one. `AssetMark` resolves `USDT_ERC20:ethereum` to the badged
                     mark — see `asset-logos.ts`. */}
@@ -332,7 +332,7 @@ export default async function OverviewPage() {
                     {shortenDecimalString(token.total)} {token.ticker}
                   </p>
                 </div>
-              </li>
+              </Link>
             ))}
           </ul>
         )}
