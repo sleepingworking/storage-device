@@ -398,7 +398,7 @@ export default async function PortfolioPage() {
           />
           <ul className="divide-y divide-line/60">
             {markets.slice(0, 6).map((market) => (
-              <li key={market.symbol} className="flex items-center gap-3 py-3">
+              <Link href={`/app/wallet`} key={market.symbol} className="flex items-center gap-3 py-3">
                 <AssetMark
                   symbol={market.symbol}
                   glyph={market.glyph}
@@ -430,7 +430,7 @@ export default async function PortfolioPage() {
                     {market.quote.state === 'stale' ? <Badge tone="warn">Stale</Badge> : null}
                   </>
                 )}
-              </li>
+              </Link>
             ))}
           </ul>
         </Panel>
