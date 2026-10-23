@@ -1,0 +1,18 @@
+/* =============================================================================
+ * Global stylesheet — the only CSS entry point, imported once by the root
+ * layout.
+ *
+ * Order is significant. Tailwind first so its `@layer` definitions exist before
+ * anything adds to them; then the design system's three layers, which are
+ * imported from shared/ui rather than defined here because the tokens and
+ * effects belong to the design system, not to the routing tree.
+ *
+ * `fonts.css` from the original design is gone: next/font generates the
+ * @font-face rules now. See shared/ui/fonts.
+ * ========================================================================== */
+
+@import 'tailwindcss';
+
+@import '../shared/ui/styles/tokens.css';
+@import '../shared/ui/styles/base.css';
+@import '../shared/ui/styles/effects.css';

@@ -1,0 +1,252 @@
+import 'server-only';
+
+import { and, count, desc, eq, gte, inArray, lt, notInArray, or, sql } from 'drizzle-orm';
+
+import type { Database } from '@/platform/db/client';
+import type { UserId } from '@/shared/kernel/ids';
+
+import { ActivityEvent, type ActivityKind } from '../../domain/event';
+import type { ActivityRepository } from '../../application/ports';
+import { events, type ActivityEventRow } from './schema';
+
+/**
+ * Activity, stored in Postgres.
+ *
+ * Append and expire. There is no update path, because the module's port does not
+ * offer one and an audit row is not a thing that gets corrected in place.
+ */
+export class DrizzleActivityRepository implements ActivityRepository {
+  constructor(private readonly db: Database) {}
+
+  nextId(): string {
+    return crypto.randomUUID();
+  }
+
+  async append(event: ActivityEvent): Promise<void> {
+    await this.db.insert(events).values({
+      id: event.id,
+      userId: event.userId,
+      kind: event.kind,
+      occurredAt: event.occurredAt,
+      path: event.path,
+      durationSeconds: event.durationSeconds,
+      reference: event.reference,
+      detail: event.detail,
+      locationSource: event.location?.source ?? null,
+      locationPrecision: event.location?.precision ?? null,
+      city: event.location?.city ?? null,
+      region: event.location?.region ?? null,
+      country: event.location?.country ?? null,
+      latitude: event.location?.latitude ?? null,
+      longitude: event.location?.longitude ?? null,
+      device: event.agent?.device ?? null,
+      browser: event.agent?.browser ?? null,
+      ipDigest: event.ipDigest,
+      visitorId: event.visitorId,
+    });
+  }
+
+  async listForUser(query: {
+    userId: UserId;
+    kinds?: readonly ActivityKind[] | undefined;
+    limit: number;
+    offset: number;
+  }): Promise<ActivityEvent[]> {
+    const rows = await this.db
+      .select()
+      .from(events)
+      .where(scope(query.userId, query.kinds))
+      .orderBy(desc(events.occurredAt))
+      .limit(query.limit)
+      .offset(query.offset);
+
+    return rows.map(toDomain);
+  }
+
+  async countForUser(
+    userId: UserId,
+    kinds?: readonly ActivityKind[] | undefined,
+  ): Promise<number> {
+    const rows = await this.db
+      .select({ total: count() })
+      .from(events)
+      .where(scope(userId, kinds));
+
+    return rows[0]?.total ?? 0;
+  }
+
+  async summariseUser(
+    userId: UserId,
+  ): Promise<{ kind: ActivityKind; total: number; lastAt: Date }[]> {
+    const rows = await this.db
+      .select({
+        kind: events.kind,
+        total: count(),
+        lastAt: sql<string>`max(${events.occurredAt})`,
+      })
+      .from(events)
+      .where(eq(events.userId, userId))
+      .groupBy(events.kind);
+
+    return rows.map((row) => ({
+      kind: row.kind,
+      total: row.total,
+      lastAt: new Date(row.lastAt),
+    }));
+  }
+
+  async listRecent(query: {
+    kinds?: readonly ActivityKind[] | undefined;
+    limit: number;
+    offset: number;
+  }): Promise<ActivityEvent[]> {
+    const rows = await this.db
+      .select()
+      .from(events)
+      .where(kindScope(query.kinds))
+      // `id` as the tie-break, because a burst written in the same millisecond
+      // would otherwise page in an arbitrary order and a row could appear twice or
+      // not at all across two pages.
+      .orderBy(desc(events.occurredAt), desc(events.id))
+      .limit(query.limit)
+      .offset(query.offset);
+
+    return rows.map(toDomain);
+  }
+
+  async countRecent(kinds?: readonly ActivityKind[] | undefined): Promise<number> {
+    const rows = await this.db.select({ total: count() }).from(events).where(kindScope(kinds));
+    return rows[0]?.total ?? 0;
+  }
+
+  async tallyByDay(query: {
+    since: Date;
+    kinds?: readonly ActivityKind[] | undefined;
+  }): Promise<{ day: string; total: number }[]> {
+    // `at time zone 'UTC'` before truncating, not after: `occurred_at` is a
+    // `timestamptz`, so grouping it without converting buckets by the *server's*
+    // zone — which would silently move the boundaries when the deployment region
+    // changes, and nothing in the output would say so.
+    const day = sql<string>`to_char(${events.occurredAt} at time zone 'UTC', 'YYYY-MM-DD')`;
+
+    const clauses = [gte(events.occurredAt, query.since)];
+    if (query.kinds !== undefined && query.kinds.length > 0) {
+      clauses.push(inArray(events.kind, [...query.kinds]));
+    }
+
+    const rows = await this.db
+      .select({ day, total: count() })
+      .from(events)
+      .where(and(...clauses))
+      .groupBy(day)
+      .orderBy(day);
+
+    return rows.map((row) => ({ day: row.day, total: row.total }));
+  }
+
+  async topPathsForUser(
+    userId: UserId,
+    limit: number,
+  ): Promise<{ path: string; views: number; totalSeconds: number }[]> {
+    const rows = await this.db
+      .select({
+        path: events.path,
+        views: count(),
+        // `coalesce`, because the most recent view of a page has no duration yet —
+        // it is written on departure. Without it a single open tab would turn the
+        // whole sum for that route into null.
+        totalSeconds: sql<string>`coalesce(sum(${events.durationSeconds}), 0)`,
+      })
+      .from(events)
+      .where(and(eq(events.userId, userId), eq(events.kind, 'page-view')))
+      .groupBy(events.path)
+      .orderBy(desc(count()))
+      .limit(limit);
+
+    return rows.flatMap((row) =>
+      row.path === null
+        ? []
+        : [{ path: row.path, views: row.views, totalSeconds: Number(row.totalSeconds) }],
+    );
+  }
+
+  /** Bounded delete on the retention index — never a full-table sweep. */
+  async deleteExpired(
+    cutoffs: {
+      ephemeralKinds: readonly ActivityKind[];
+      ephemeral: Date;
+      security: Date;
+    },
+    limit: number,
+  ): Promise<number> {
+    // Split on the set the domain owns, not on a literal here. The earlier version
+    // compared against `'page-view'` in two places, and a kind added to the short
+    // window would have been swept by neither branch.
+    const ephemeral = [...cutoffs.ephemeralKinds];
+    const expired = or(
+      and(inArray(events.kind, ephemeral), lt(events.occurredAt, cutoffs.ephemeral)),
+      and(notInArray(events.kind, ephemeral), lt(events.occurredAt, cutoffs.security)),
+    );
+
+    const deleted = await this.db
+      .delete(events)
+      .where(
+        sql`${events.id} IN (
+          SELECT ${events.id} FROM ${events}
+          WHERE ${expired}
+          LIMIT ${limit}
+        )`,
+      )
+      .returning({ id: events.id });
+
+    return deleted.length;
+  }
+}
+
+function scope(userId: UserId, kinds?: readonly ActivityKind[] | undefined) {
+  // An empty array would compile to `IN ()` and silently match nothing, which
+  // reads at the call site as "no filter" and behaves as "exclude everything".
+  return kinds !== undefined && kinds.length > 0
+    ? and(eq(events.userId, userId), inArray(events.kind, [...kinds]))
+    : eq(events.userId, userId);
+}
+
+/**
+ * Rebuilds an event from a row.
+ *
+ * The location is reconstructed only when the row actually holds one — a source
+ * and a precision both present. A partially written location is not a location,
+ * and assembling one from four nulls would manufacture a fix asserting nothing.
+ */
+function toDomain(row: ActivityEventRow): ActivityEvent {
+  return ActivityEvent.rehydrate({
+    id: row.id,
+    userId: row.userId as UserId,
+    kind: row.kind,
+    occurredAt: row.occurredAt,
+    path: row.path,
+    durationSeconds: row.durationSeconds,
+    reference: row.reference,
+    detail: row.detail,
+    location:
+      row.locationSource === null || row.locationPrecision === null
+        ? null
+        : {
+            source: row.locationSource,
+            precision: row.locationPrecision,
+            city: row.city,
+            region: row.region,
+            country: row.country,
+            latitude: row.latitude,
+            longitude: row.longitude,
+          },
+    agent: row.device === null ? null : { device: row.device, browser: row.browser },
+    ipDigest: row.ipDigest,
+    visitorId: row.visitorId,
+  });
+}
+
+/** Narrows to a set of kinds, or to everything when none is given. */
+function kindScope(kinds?: readonly ActivityKind[] | undefined) {
+  return kinds !== undefined && kinds.length > 0 ? inArray(events.kind, [...kinds]) : undefined;
+}

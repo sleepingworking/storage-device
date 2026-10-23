@@ -1,0 +1,28 @@
+name: novex-dev
+
+services:
+  # Catches every outbound email locally. UI on http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+  # Receives OTLP traces/metrics so the telemetry path is exercised in dev,
+  # not discovered to be broken in staging.
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: 'true'
+    ports:
+      - '16686:16686'
+      - '4318:4318'
+
+volumes:
+  pgdata:
+  # Declared but unused: nothing in the stack runs Redis yet. Sessions are
+  # Postgres rows and the app has no cache tier, so adding one would be a
+  # service with no reader. Left here for when something needs it.
+  redisdata:

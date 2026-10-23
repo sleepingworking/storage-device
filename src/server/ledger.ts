@@ -1,0 +1,499 @@
+import 'server-only';
+
+import { after } from 'next/server';
+import { cache } from 'react';
+
+import { BRAND } from '@/modules/content';
+import type {
+  ApprovalQueueDto,
+  DepositClaimStatus,
+  StatementDto,
+  StatementOptions,
+  TransactionPageDto,
+  TreasuryDto,
+  WalletDto,
+} from '@/modules/ledger';
+import type { CustomerDirectory, ReceiptSender } from '@/modules/ledger/server';
+import {
+  getReceipt,
+  getStatement,
+  getTreasury,
+  getWallet,
+  LEDGER_ASSETS,
+  quoteSymbolForAsset,
+  listPendingApprovals,
+  listTransactions,
+  registerLedger,
+  type LedgerModule,
+  type PriceOracle,
+} from '@/modules/ledger/server';
+import { valueOf } from '@/modules/market-data';
+import { db } from '@/platform/db/client';
+import { mailTransport } from '@/platform/email/transport';
+import { logger } from '@/platform/observability/logger';
+import { Money } from '@/shared/kernel';
+import type { UserId } from '@/shared/kernel/ids';
+
+import { identity } from './auth';
+import { getMarkets } from './market-data';
+
+/**
+ * The application's facade over the ledger.
+ *
+ * ── This is the only place that knows the ledger and market-data both exist ────
+ * The ledger needs USD values to enforce a daily withdrawal limit. It declares a
+ * `PriceOracle` port and refuses to import a feed; market-data owns the prices and
+ * has never heard of a balance. The adapter below is the join, and it lives here
+ * for the same reason the presence/identity join does — above both, in the layer
+ * whose job is composition.
+ */
+
+/**
+ * One module instance per request.
+ *
+ * Not a singleton: a module-level instance would capture a database handle across
+ * requests. Null when no database is configured, which every caller degrades
+ * around rather than throwing.
+ */
+export const ledger = cache((): LedgerModule | null => {
+  const handle = db();
+  if (!handle) return null;
+
+  return registerLedger({
+    db: handle,
+    prices: marketPriceOracle,
+    receipts: smtpReceiptSender,
+    directory: identityDirectory,
+    siteName: BRAND.name,
+  });
+});
+
+/**
+ * Emails a customer where one of their deposits or withdrawals now stands.
+ *
+ * Called by each action that moves one along — a withdrawal requested, a deposit
+ * submitted, an operator's final decision on either — once that step has committed.
+ * What the message says is decided by the ledger from the record as stored; see
+ * `sendTransactionEmail`.
+ *
+ * ── After the response, and never a reason to fail ────────────────────────────
+ * It runs in `after`, so a slow mail server holds up neither the customer's form
+ * nor the operator's queue. And a failure is only logged: the step happened whether
+ * or not the message arrived, and an action that reported an error for a withdrawal
+ * already on hold would invite the customer to submit it again.
+ */
+export function emailCustomerAbout(kind: 'deposit' | 'withdrawal', recordId: string): void {
+  const send = async (): Promise<void> => {
+    try {
+      const context = ledger();
+      if (context === null) return;
+
+      const result = await context.sendTransactionEmail({ kind, recordId });
+      if (result.ok) {
+        logger.info({
+          event: 'transaction_email_sent',
+          module: 'ledger',
+          kind,
+          reference: result.value.reference,
+        });
+      } else {
+        logger.warn({
+          event: 'transaction_email_failed',
+          module: 'ledger',
+          kind,
+          recordId,
+          reason: result.error.kind,
+        });
+      }
+    } catch (error) {
+      logger.warn({ event: 'transaction_email_failed', module: 'ledger', kind, recordId }, error);
+    }
+  };
+
+  // `after` throws outside a request, where there is no response to wait for.
+  try {
+    after(send);
+  } catch {
+    void send();
+  }
+}
+
+/**
+ * Values an amount in USD using the live market.
+ *
+ * ── It returns null rather than guessing, and that has teeth ───────────────────
+ * `Market.quoteStateAt` distinguishes `live`, `stale` and `unavailable`, and this
+ * adapter accepts **only `live`**. A stale quote is good enough to render on a
+ * marketing page behind a "last updated" label; it is not good enough to decide how
+ * much money may leave the platform. Those are different bars and this is the one
+ * that should be higher.
+ *
+ * The consequence is deliberate and visible: when the feed goes quiet, withdrawals
+ * stop rather than being approved against yesterday's prices. `requestWithdrawal`
+ * turns the null into `valuation-unavailable`, and the wallet page explains it.
+ */
+const marketPriceOracle: PriceOracle = {
+  async valueInUsd(amount: Money): Promise<Money | null> {
+    if (amount.isZero) return Money.zero('USD', 2);
+
+    // USD is its own valuation. Without this, a stablecoin balance would depend on
+    // a feed quoting a dollar in dollars.
+    if (amount.currency === 'USD') return amount.withScale(2);
+
+    try {
+      /*
+       * The *quote* symbol, not the asset code.
+       *
+       * `USDT_ERC20` and `USDT_TRC20` are two ledger assets and one market: a
+       * price is a statement about tether's dollar value, not about which chain a
+       * unit is sitting on. Matching the code directly would leave both of them
+       * permanently unpriced — and `valueUsd` renders null as "not priced", so the
+       * symptom would be two balances a customer can see and no total.
+       */
+      const symbol = quoteSymbolForAsset(amount.currency);
+
+      const markets = await getMarkets();
+      const market = markets.find((candidate) => candidate.symbol === symbol);
+      if (market === undefined || market.quote.state !== 'live') return null;
+
+      // `valueOf` multiplies in `bigint` and divides once at the end, so the value
+      // never passes through a float. The obvious `Number(price) * Number(amount)`
+      // would be wrong at the one moment it is least affordable — deciding how much
+      // money may leave the platform.
+      return valueOf(amount, Money.fromDecimalString(market.quote.price, 'USD', 2));
+    } catch (error) {
+      logger.warn({ event: 'valuation_failed', module: 'ledger', asset: amount.currency }, error);
+      return null;
+    }
+  },
+};
+
+/**
+ * Turns an opaque `UserId` into an address.
+ *
+ * The identity half of a cross-context join, and the reason the ledger declares a
+ * `CustomerDirectory` port rather than importing identity: the ledger knows who a
+ * movement belongs to by id and has no business knowing what an email address is.
+ *
+ * Never throws. A receipt that cannot find an address is a receipt nobody
+ * receives, which the use case reports in its own words — it is not a reason for
+ * the page that asked to fail.
+ */
+const identityDirectory: CustomerDirectory = {
+  async emailFor(userId): Promise<string | null> {
+    try {
+      const found = await identity().describeUsers([userId]);
+      return found.get(userId)?.email ?? null;
+    } catch (error) {
+      logger.warn({ event: 'receipt_directory_failed', module: 'identity', userId }, error);
+      return null;
+    }
+  },
+};
+
+/**
+ * Sends over the platform's pooled SMTP connection.
+ *
+ * Reports failure as a value rather than throwing, because the alternative is an
+ * operator clicking "email receipt" and getting a stack trace for a mail server
+ * that is merely slow. The use case turns the reason into something readable.
+ */
+const smtpReceiptSender: ReceiptSender = {
+  async send(message) {
+    try {
+      await mailTransport().send(message);
+      return { sent: true };
+    } catch (error) {
+      logger.warn({ event: 'receipt_send_failed', module: 'ledger' }, error);
+      return {
+        sent: false,
+        reason: error instanceof Error ? error.message : 'The mail server refused it.',
+      };
+    }
+  },
+};
+
+const UNAVAILABLE_WALLET: WalletDto = {
+  balances: [],
+  totalValueUsd: null,
+  valuationIncomplete: true,
+  pendingWithdrawals: [],
+  degraded: true,
+};
+
+/**
+ * One customer's wallet.
+ *
+ * Deduplicated per request, so a page showing a total, a balance table and a
+ * pending list costs one read between them rather than three.
+ */
+export const getWalletFor = cache(async (userId: UserId): Promise<WalletDto> => {
+  const context = ledger();
+  if (context === null) return UNAVAILABLE_WALLET;
+
+  return getWallet(context.dependencies, userId);
+});
+
+/** The operator queue. */
+export const getApprovalQueue = cache(async (): Promise<ApprovalQueueDto> => {
+  const context = ledger();
+  if (context === null) {
+    return { withdrawals: [], heldValueUsd: null, unpriced: 0, degraded: true };
+  }
+
+  return listPendingApprovals(context.dependencies);
+});
+
+/**
+ * One customer's own deposit and withdrawal records, newest first.
+ *
+ * ── Records, not entries — and the page shows both for a reason ───────────────
+ * `getStatementFor` reads the ledger's entries: what actually moved. This reads
+ * the requests behind them, which is a different set. A refused deposit and a
+ * withdrawal still on hold never produced an entry and are absent from a
+ * statement entirely, yet they are exactly the things a customer goes looking
+ * for — and a receipt is issued against the record, not against the entry.
+ *
+ * ── Leaner than the console's feed on purpose ─────────────────────────────────
+ * `getTransactionFeed` in `server/transactions.ts` joins identity so an operator
+ * can see whose money it is. A customer already knows, so this skips that join
+ * and the second query with it.
+ */
+export async function getOwnTransactions(
+  userId: UserId,
+  limit = 10,
+): Promise<TransactionPageDto> {
+  const context = ledger();
+  if (context === null) return { transactions: [], nextCursor: null, degraded: true };
+
+  return listTransactions(context.dependencies, { userId, limit });
+}
+
+/**
+ * One customer's statement.
+ *
+ * Not deduplicated per request, unlike the wallet: it is parameterised by page and
+ * asset, and `cache` keyed on nothing would return the first page to a caller
+ * asking for the third.
+ */
+export async function getStatementFor(
+  userId: UserId,
+  options: StatementOptions = {},
+): Promise<StatementDto> {
+  const context = ledger();
+  if (context === null) {
+    return { lines: [], total: 0, limit: options.limit ?? 25, offset: 0, degraded: true };
+  }
+
+  return getStatement(context.dependencies, userId, options);
+}
+
+/**
+ * Every asset the platform will custody, with the precision it is stored at and
+ * the chains it travels on.
+ *
+ * Separate from `withdrawableAssets` although it reads the same catalogue: that
+ * one carries fees, minimums and address patterns because a withdrawal form needs
+ * them, and nothing is being withdrawn here. What both need is the network list —
+ * "USDT" does not say whether a student is being shown a Tron balance or an
+ * Ethereum one, and that distinction is the whole reason the asset has two rows
+ * on any real exchange.
+ */
+export function fundableAssets() {
+  return LEDGER_ASSETS.map((asset) => ({
+    code: asset.code,
+    /** What a person calls it. Two assets may share one — see `LedgerAsset`. */
+    ticker: asset.ticker,
+    /** The market-data symbol that prices it. Both tethers quote as `USDT`. */
+    quoteSymbol: quoteSymbolForAsset(asset.code),
+    name: asset.name,
+    /** Decimal places the balance is held at — what the form hints as a step. */
+    scale: asset.scale,
+    /**
+     * The chains this asset travels on, so the form can ask when there is a
+     * question to ask. Only the id and the label: a fee, a minimum and an address
+     * pattern are a withdrawal's business, and nothing here is being withdrawn.
+     */
+    networks: asset.networks.map((network) => ({
+      id: network.id,
+      label: network.label,
+    })),
+  }));
+}
+
+/** The withdrawal form's options: assets, networks, fees and minimums. */
+export function withdrawableAssets() {
+  return LEDGER_ASSETS.map((asset) => ({
+    code: asset.code,
+    ticker: asset.ticker,
+    quoteSymbol: quoteSymbolForAsset(asset.code),
+    name: asset.name,
+    scale: asset.scale,
+    minimumWithdrawal: asset.minimumWithdrawal,
+    networks: asset.networks.map((network) => ({
+      id: network.id,
+      label: network.label,
+      fee: network.fee,
+      eta: network.eta,
+    })),
+  }));
+}
+
+/**
+ * Deposit claims awaiting an operator.
+ *
+ * Deduplicated per request so the console's counter and its list cost one read.
+ */
+export const getPendingDepositClaims = cache(async () => {
+  const context = ledger();
+  if (context === null) return [];
+
+  try {
+    const claims = await context.dependencies.claims.listPending(100);
+    return claims.map(toClaimView);
+  } catch (error) {
+    logger.error({ event: 'deposit_queue_read_failed', module: 'ledger' }, error);
+    return [];
+  }
+});
+
+/** One customer's own claims, for the wallet. */
+export async function getDepositClaimsFor(userId: UserId) {
+  const context = ledger();
+  if (context === null) return [];
+
+  try {
+    const claims = await context.dependencies.claims.listForUser(userId, 20);
+    return claims.map(toClaimView);
+  } catch (error) {
+    logger.warn({ event: 'deposit_claims_read_failed', module: 'ledger', userId }, error);
+    return [];
+  }
+}
+
+export interface DepositClaimView {
+  readonly id: string;
+  readonly userId: string;
+  readonly asset: string;
+  readonly network: string;
+  readonly claimedAmount: string;
+  readonly creditedAmount: string | null;
+  readonly reference: string;
+  readonly status: DepositClaimStatus;
+  readonly submittedAt: string;
+  /** When an operator said it was waiting on the chain, if they did. */
+  readonly confirmingAt: string | null;
+  /** The operator's words to the customer while it waits. Never a refusal. */
+  readonly confirmingNote: string | null;
+  readonly decidedAt: string | null;
+  readonly reason: string | null;
+}
+
+/**
+ * The claim, without its proof.
+ *
+ * `proofId` is deliberately absent: the image is fetched by its own authorised
+ * route, keyed on the *claim* id, so a proof key never travels to a browser and
+ * cannot be pasted into an unauthenticated request.
+ */
+function toClaimView(claim: {
+  snapshot(): {
+    id: string;
+    userId: string;
+    asset: string;
+    network: string;
+    claimedAmount: { toDecimalString(): string };
+    creditedAmount: { toDecimalString(): string } | null;
+    reference: string;
+    status: DepositClaimStatus;
+    submittedAt: Date;
+    confirmingAt: Date | null;
+    confirmingNote: string | null;
+    decidedAt: Date | null;
+    reason: string | null;
+  };
+}): DepositClaimView {
+  const s = claim.snapshot();
+  return {
+    id: s.id,
+    userId: s.userId,
+    asset: s.asset,
+    network: s.network,
+    claimedAmount: s.claimedAmount.toDecimalString(),
+    creditedAmount: s.creditedAmount?.toDecimalString() ?? null,
+    reference: s.reference,
+    status: s.status,
+    submittedAt: s.submittedAt.toISOString(),
+    confirmingAt: s.confirmingAt?.toISOString() ?? null,
+    confirmingNote: s.confirmingNote,
+    decidedAt: s.decidedAt?.toISOString() ?? null,
+    reason: s.reason,
+  };
+}
+
+/**
+ * The bytes of one claim's proof, for a caller that has already proved it may see
+ * them.
+ *
+ * Keyed on the claim, not the proof: the route that serves an image checks who is
+ * asking against the claim's owner, and that check needs the claim in hand.
+ */
+export async function getDepositProof(
+  claimId: string,
+): Promise<{ bytes: Uint8Array; contentType: string; ownerId: string } | null> {
+  const context = ledger();
+  if (context === null) return null;
+
+  const claim = await context.dependencies.claims.find(claimId);
+  if (claim === null) return null;
+
+  const proof = await context.dependencies.proofs.get(claim.proofId);
+  if (proof === null) return null;
+
+  return { bytes: proof.bytes, contentType: proof.contentType, ownerId: claim.userId };
+}
+
+/**
+ * What the platform itself holds: customer liability, fee revenue, and approved
+ * payouts not yet sent.
+ *
+ * Deduplicated per request so the tiles and the table cost one read between them.
+ */
+export const getPlatformTreasury = cache(async (): Promise<TreasuryDto> => {
+  const context = ledger();
+  if (context === null) {
+    // Annotated rather than inferred, so a field added to `TreasuryDto` fails
+    // here instead of quietly leaving the degraded shape a field short — which is
+    // exactly what happened when `demoUsd` was added.
+    return {
+      lines: [],
+      liabilityUsd: null,
+      feesUsd: null,
+      payableUsd: null,
+      demoUsd: null,
+      valuationIncomplete: true,
+      degraded: true,
+    };
+  }
+
+  return getTreasury(context.dependencies);
+});
+
+/**
+ * One transaction's receipt.
+ *
+ * `asCustomer` is the authority check, not a filter: a customer asking for a
+ * record that is not theirs gets the same answer as one asking for a record that
+ * does not exist. Passing it down rather than checking at the page means the
+ * emailed copy is scoped by the identical rule.
+ */
+export async function getReceiptFor(
+  kind: 'deposit' | 'withdrawal',
+  recordId: string,
+  asCustomer?: UserId | undefined,
+) {
+  const context = ledger();
+  if (context === null) return null;
+
+  return getReceipt(context.dependencies, kind, recordId, asCustomer);
+}
