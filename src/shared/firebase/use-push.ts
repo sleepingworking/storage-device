@@ -144,9 +144,7 @@ export function usePush(
     } catch (failure) {
       report(failure);
       setError(
-        failure instanceof PushSetupError
-          ? failure.message
-          : 'Notifications could not be turned on in this browser.',
+        failure instanceof PushSetupError ? failure.message : unexplained(failure),
       );
       setState('prompt');
     }
@@ -362,7 +360,16 @@ function describeTokenFailure(error: unknown): string {
   if (code === 'messaging/token-subscribe-failed') {
     return 'The notification service refused to register this browser. Try again in a moment.';
   }
-  return 'Notifications could not be turned on in this browser.';
+  return unexplained(error);
+}
+
+/**
+ * The fallback sentence, with the error's code in it, so a failure reported from a
+ * phone — where nobody opens a console — can still be traced.
+ */
+function unexplained(error: unknown): string {
+  const { code, name } = (error ?? {}) as { code?: string; name?: string };
+  return `Notifications could not be turned on in this browser (${code || name || 'unknown error'}).`;
 }
 
 async function saveToken(token: string): Promise<void> {
