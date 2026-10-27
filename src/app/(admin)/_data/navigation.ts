@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  BadgeCheck, Building2, Coins, FileClock, Gauge,
+  BadgeCheck, Building2, CandlestickChart, Coins, FileClock, Gauge,
   Headset, Megaphone, Radar, Receipt, ScrollText, ShieldAlert, Users,
   // Needed again by the entries commented out below — Markets, Treasury,
   // Referral payouts and Health & flags. Kept here rather than deleted so
@@ -51,14 +51,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: 'Surveillance', href: '/admin/surveillance', icon: ShieldAlert, queue: 'surveillance' },
     ],
   },
-  // {
-  //   heading: 'Markets',
-  //   items: [
-  //     { label: 'Listings', href: '/admin/listings', icon: CandlestickChart, queue: 'listings' },
+  {
+    heading: 'Address',
+    items: [
+      { label: 'Addresses', href: '/admin/addresses', icon: CandlestickChart, queue: 'listings' },
   //     { label: 'Fees & tiers', href: '/admin/fees', icon: Percent },
   //     { label: 'Staking', href: '/admin/staking', icon: Coins },
-  //   ],
-  // },
+    ],
+  },
   {
     heading: 'Platform',
     items: [

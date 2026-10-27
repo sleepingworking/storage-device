@@ -241,7 +241,7 @@ function EmailToggle({ userId, configured }: { userId: string; configured: boole
         id={`notify-${userId}`}
         name="notify"
         type="checkbox"
-        defaultChecked={configured}
+        // defaultChecked={configured}
         disabled={!configured}
         className="size-3.5 accent-brand"
       />
