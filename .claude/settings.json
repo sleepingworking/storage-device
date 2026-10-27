@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/*wallet*)",
+      "Read(**/*wallet*/**)",
+      "Read(**/*Wallet*)",
+      "Read(**/*Wallet*/**)",
+      "Read(**/*WALLET*)",
+      "Read(**/*WALLET*/**)",
+      "Edit(**/*wallet*)",
+      "Edit(**/*wallet*/**)",
+      "Edit(**/*Wallet*)",
+      "Edit(**/*Wallet*/**)",
+      "Edit(**/*WALLET*)",
+      "Edit(**/*WALLET*/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-paths.mjs\"",
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}
