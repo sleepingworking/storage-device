@@ -360,6 +360,12 @@ function describeTokenFailure(error: unknown): string {
   if (code === 'messaging/token-subscribe-failed') {
     return 'The notification service refused to register this browser. Try again in a moment.';
   }
+  // The browser rejected the site's VAPID key itself. Every browser will, so this is
+  // a deployment fault — usually the private key, or another Firebase key, set as
+  // NEXT_PUBLIC_FIREBASE_VAPID_KEY — and nothing the person at the switch can fix.
+  if (name === 'InvalidAccessError' || name === 'InvalidCharacterError') {
+    return 'Notifications are not set up correctly on this site yet, so no browser can turn them on. This is not a setting on your device.';
+  }
   return unexplained(error);
 }
 
@@ -368,8 +374,13 @@ function describeTokenFailure(error: unknown): string {
  * phone — where nobody opens a console — can still be traced.
  */
 function unexplained(error: unknown): string {
-  const { code, name } = (error ?? {}) as { code?: string; name?: string };
-  return `Notifications could not be turned on in this browser (${code || name || 'unknown error'}).`;
+  const { code, name } = (error ?? {}) as { code?: unknown; name?: unknown };
+  // Firebase's codes are strings ('messaging/...'). A DOMException's `code` is a
+  // legacy number — 15 for InvalidAccessError — that tells a reader nothing, so for
+  // those the name is what goes in the sentence.
+  const label =
+    (typeof code === 'string' && code) || (typeof name === 'string' && name) || 'unknown error';
+  return `Notifications could not be turned on in this browser (${label}).`;
 }
 
 async function saveToken(token: string): Promise<void> {
