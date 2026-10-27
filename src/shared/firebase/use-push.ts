@@ -347,6 +347,8 @@ function activated(registration: ServiceWorkerRegistration): Promise<void> {
 }
 
 function describeTokenFailure(error: unknown): string {
+
+  console.log("Notification Error =>>>>>>> ", error);
   const { code, name } = (error ?? {}) as { code?: string; name?: string };
 
   if (code === 'messaging/permission-blocked' || code === 'messaging/permission-default') {
