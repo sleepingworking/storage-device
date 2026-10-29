@@ -110,7 +110,6 @@ export default async function WalletPage() {
     marks.get((display.get(code) ?? unknownAsset(code)).quoteSymbol);
   const tickerFor = (code: string) => (display.get(code) ?? unknownAsset(code)).ticker;
 
-
   /*
    * Only what is still going on, plus anything refused.
    *
@@ -168,7 +167,7 @@ export default async function WalletPage() {
           }}
           icon={<Wallet2 className="size-4" />}
         />
-        <StatTile
+        {/* <StatTile
           label="Assets held"
           value={String(wallet.balances.length)}
           delta={{
@@ -176,8 +175,7 @@ export default async function WalletPage() {
             direction: 'flat',
             period: '',
           }}
-        />
-       
+        /> */}
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_1.25fr]">
@@ -194,9 +192,7 @@ export default async function WalletPage() {
             column grows to fit it — which on a phone meant the whole page scrolled
             sideways by 200px instead of the table scrolling inside its own box. */}
         <div className="min-w-0 space-y-4">
-        
-
-          {open.length > 0 ? (
+          {/* {open.length > 0 ? (
             <Panel>
               <PanelHeader
                 title="Deposits"
@@ -206,11 +202,6 @@ export default async function WalletPage() {
                 {open.map((claim) => (
                   <li key={claim.id} className="py-3">
                     <div className="flex flex-wrap items-center gap-3">
-                      {/* The coin carrying its chain's badge, in place of the clock
-                          that used to sit here. The status is already spelled out
-                          in words on the badge at the end of this row, and what the
-                          glyph was doing — saying "not finished yet" a second time —
-                          is worth less than saying *which USDT this is*. */}
                       <AssetMark
                         symbol={claim.asset}
                         glyph={markFor(claim.asset)?.glyph ?? claim.asset.slice(0, 1)}
@@ -227,9 +218,6 @@ export default async function WalletPage() {
                       <span className="ml-auto text-2xs text-fg-subtle">
                         {formatDate(claim.submittedAt)}
                       </span>
-                      {/* The same three words this account's other screens use.
-                          This panel used to say "Reported" where the transactions
-                          page said "Awaiting review" about the very same row. */}
                       <Badge tone={CUSTOMER_STATUS[claim.status].tone}>
                         {CUSTOMER_STATUS[claim.status].label}
                       </Badge>
@@ -239,10 +227,6 @@ export default async function WalletPage() {
                         status={claim.status === 'confirming' ? 'confirming' : claim.status}
                       />
                     </div>
-                    {/* The operator's own words, whichever kind they are. A note
-                        while it confirms and a reason for a refusal are different
-                        fields on the record precisely so this line cannot present
-                        one as the other. */}
                     {claim.status === 'confirming' ? (
                       <p className="mt-1.5 text-2xs leading-relaxed text-fg-muted">
                         {claim.confirmingNote ?? CUSTOMER_STATUS.confirming.hint}
@@ -267,9 +251,7 @@ export default async function WalletPage() {
                 is not part of your balance.
               </p>
             </Panel>
-          ) : null}
-
-         
+          ) : null} */}
 
           <Panel>
             <PanelHeader title="Balances" subtitle="Held on the exchange" />
@@ -357,7 +339,6 @@ function Notice({ tone, title, body }: { tone: 'warn' | 'down'; title: string; b
     </div>
   );
 }
-
 
 /**
  * How a reported deposit reads on the customer's own page.

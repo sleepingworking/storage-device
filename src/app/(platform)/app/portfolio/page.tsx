@@ -123,7 +123,7 @@ export default async function PortfolioPage() {
           }}
           icon={<Wallet2 className="size-4" />}
         />
-        <StatTile
+        {/* <StatTile
           label="Assets held"
           value={String(held.length)}
           delta={{
@@ -132,7 +132,7 @@ export default async function PortfolioPage() {
             period: '',
           }}
           icon={<PieChart className="size-4" />}
-        />
+        /> */}
         <StatTile
           label="Largest position"
           value={slices[0]?.label ?? '—'}
@@ -151,7 +151,7 @@ export default async function PortfolioPage() {
        
       </div>
 
-      {held.length === 0 ? (
+      {/* {held.length === 0 ? (
         <Panel>
           <p className="py-14 text-center text-sm text-fg-subtle">
             {wallet.degraded
@@ -179,9 +179,7 @@ export default async function PortfolioPage() {
               </p>
             ) : (
               <div className="flex justify-center">
-                {/* Wrapped, because `formatValue` is a function and this page is
-                    a Server Component — see `allocation-donut.tsx`. */}
-                <AllocationDonut
+                  <AllocationDonut
                   slices={slices}
                   centerValue={usd(pricedTotal.toFixed(2))}
                 />
@@ -296,7 +294,7 @@ export default async function PortfolioPage() {
             ) : null}
           </Panel>
         </div>
-      )}
+      )} */}
 
       {/* ── Arrived from the overview ──────────────────────────────────────── */}
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
