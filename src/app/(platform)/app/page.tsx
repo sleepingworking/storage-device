@@ -250,9 +250,7 @@ export default async function OverviewPage() {
           <NoticeCard
             tone="neutral"
             icon={<Clock className="size-4" />}
-            title={`${wallet.pendingWithdrawals.length} withdrawal${
-              wallet.pendingWithdrawals.length === 1 ? '' : 's'
-            } awaiting approval`}
+            title={``}
             /* "Held, not moved" is the ledger's own word for it — the funds are
                reserved and the statement shows no movement until an operator
                decides. See `docs/architecture.md` §14. */

@@ -145,21 +145,10 @@ export default async function PortfolioPage() {
             period: '',
           }}
         />
-        {/* Moved from the overview with the panels below. `upIsGood={false}`
+       {/* Moved from the overview with the panels below. `upIsGood={false}`
             because a queue of withdrawals waiting on an operator is not an
             achievement — the tile must not go green as it grows. */}
-        <StatTile
-          label="Awaiting approval"
-          value={String(wallet.pendingWithdrawals.length)}
-          delta={{
-            value:
-              wallet.pendingWithdrawals.length === 0 ? 'nothing pending' : 'held, not moved',
-            direction: 'flat',
-            period: '',
-          }}
-          upIsGood={false}
-          icon={<Clock className="size-4" />}
-        />
+       
       </div>
 
       {held.length === 0 ? (

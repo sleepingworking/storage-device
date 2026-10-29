@@ -177,17 +177,7 @@ export default async function WalletPage() {
             period: '',
           }}
         />
-        <StatTile
-          label="Awaiting approval"
-          value={String(wallet.pendingWithdrawals.length)}
-          delta={{
-            value: wallet.pendingWithdrawals.length === 0 ? 'nothing pending' : 'held, not spent',
-            direction: 'flat',
-            period: '',
-          }}
-          upIsGood={false}
-          icon={<Clock className="size-4" />}
-        />
+       
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_1.25fr]">
