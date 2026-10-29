@@ -22,7 +22,6 @@ const WALLET_FAQ = [
   { question: 'What is MPC and why does it matter?', answer: 'Multi-party computation splits your private key into shards that never come together. Signing happens collaboratively between shards, so a complete key never exists on any device, server, or piece of paper. There is no seed phrase to photograph, lose, or have phished out of you.' },
   { question: 'What happens if I lose my phone?', answer: `Your device shard is gone, but the other two are not. Install the app on a new device, authenticate, and your recovery shard plus your cloud shard reconstitute signing capability. ${BRAND.name} still never holds a quorum.` },
   { question: `Can ${BRAND.name} freeze my wallet?`, answer: `No. ${BRAND.name} Wallet is non-custodial. We cannot move, freeze, or claw back assets held in it — including if a court orders us to. Assets in your exchange account are a different matter and are subject to the terms of service.` },
-  { question: 'Does it cost anything?', answer: 'The wallet is free. On-chain transactions carry the network fee at cost with nothing added. Moving between your exchange account and your wallet is free and instant.' },
 ];
 
 // Must be a literal: Next reads segment config statically, so an imported

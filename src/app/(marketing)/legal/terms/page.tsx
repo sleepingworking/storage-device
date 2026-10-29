@@ -88,10 +88,6 @@ const SECTIONS: LegalSection[] = [
           Fees are published in full on our fees page and form part of these terms. We give at least
           30 days&apos; notice of any increase, published on that page and sent to your registered email.
         </p>
-        <p>
-          Network fees on withdrawals are passed through at cost. We do not add a margin to them or
-          round them up.
-        </p>
       </>
     ),
   },

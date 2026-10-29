@@ -280,11 +280,6 @@ export default async function ApprovalsPage() {
                       </Field>
                       <Field label="Requested">{formatDate(withdrawal.requestedAt)}</Field>
                       <Field label="Network">{withdrawal.network}</Field>
-                      <Field label="Network fee">
-                        <span className="font-mono">
-                          {withdrawal.fee} {withdrawal.asset}
-                        </span>
-                      </Field>
                       <Field label="Destination" wide>
                         <span className="font-mono break-all">{withdrawal.destination}</span>
                       </Field>

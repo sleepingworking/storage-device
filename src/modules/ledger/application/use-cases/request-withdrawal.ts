@@ -96,7 +96,6 @@ export function createRequestWithdrawal(deps: LedgerDependencies) {
     }
 
     // No per-asset minimum is enforced. `asset.minimumWithdrawal` is still in the
-    // catalogue because the network fee makes a dust withdrawal pointless, but
     // pointless is the customer's call, not a rule this refuses on.
 
     const owner = userOwner(command.userId);
@@ -112,7 +111,6 @@ export function createRequestWithdrawal(deps: LedgerDependencies) {
     }
 
     /*
-     * A token cannot pay its own network fee.
      *
      * USDT on Ethereum is moved by an Ethereum transaction, and Ethereum charges
      * but USDT has a balance that cannot leave, and until now the request was

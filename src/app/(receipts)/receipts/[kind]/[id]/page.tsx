@@ -221,7 +221,6 @@ export default async function ReceiptPage({
  * One line of the itemisation.
  *
  * Label and value on one row down to the narrowest phone, because the pair only
- * means anything read together — an `0.00008276` stacked under `Network fee` with
  * a full line between them is two facts, not one.
  */
 function Row({

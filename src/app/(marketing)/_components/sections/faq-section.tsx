@@ -10,14 +10,9 @@ export const HOME_FAQ: DisclosureItem[] = [
       'Every 24 hours we publish a Merkle root of all customer balances alongside signed attestations of on-chain reserve addresses. Your account page gives you your own leaf and the sibling hashes, so you can verify your balance is inside the published root without trusting us or an auditor.',
   },
   {
-    question: 'What does it actually cost to trade?',
-    answer:
-      'Spot trading starts at 0.10% taker and 0.02% maker, falling to 0.03% / −0.005% at the top volume tier. New accounts trade the top 20 pairs commission-free for 30 days. Deposits over local rails are free; card funding carries the network fee at cost.',
-  },
-  {
     question: `Is ${BRAND.name} regulated?`,
     answer:
-      `${BRAND.name} operates under 14 licences including MiCA authorisation in the EEA, a Major Payment Institution licence in Singapore, and FinCEN MSB registration in the United States. Product availability varies by jurisdiction and is shown at signup.`,
+      `${BRAND.name} operates under 14 licences including MiCA authorisation in the EEA, a Major Payment Institution licence in Singapore, Product availability varies by jurisdiction and is shown at signup.`,
   },
   {
     question: 'Can I hold my own keys?',
