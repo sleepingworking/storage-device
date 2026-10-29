@@ -5,7 +5,7 @@ import type { ReceiptDto } from '@/modules/ledger';
 import { requireUser } from '@/server/auth';
 import { getReceiptFor } from '@/server/ledger';
 import { cn } from '@/shared/lib/cn';
-import { formatDate, formatTimestamp } from '@/shared/lib/format';
+import { formatTimestamp } from '@/shared/lib/format';
 
 import './receipt.css';
 
@@ -73,7 +73,7 @@ const OUTCOMES = {
   // decided, and `sendReceipt` refuses to email one at all.
   pending: {
     document: 'Transaction pending',
-    label: 'Awaiting a decision',
+    label: 'Pending',
     Icon: Clock,
     disc: 'bg-warn',
   },
@@ -197,21 +197,6 @@ export default async function ReceiptPage({
           <Row label="Reference" value={receipt.reference} mono />
           <Row label="Account" value={receipt.userId} mono />
         </dl>
-
-        <footer className="border-t border-line px-6 py-6 text-2xs leading-relaxed text-fg-subtle sm:px-10">
-          <p>
-            Issued {formatDate(receipt.issuedAt)}. Every figure here is the value
-            recorded at the time of the transaction and is never recalculated —
-            {/* Said on the document itself, because a reader comparing it to today's
-                price will otherwise conclude the receipt is wrong. */}{' '}
-            a value shown in dollars is the price when the request was made, not
-            today&rsquo;s.
-          </p>
-          <p className="mt-2">
-            This is a record of a movement on an account. It is not a tax invoice and
-            carries no VAT treatment.
-          </p>
-        </footer>
       </article>
     </main>
   );
