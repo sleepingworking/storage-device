@@ -101,7 +101,7 @@ export async function requestWithdrawalAction(
     /* One message, because there is one outcome. The other branch warned that
        withdrawals over the dual-control threshold need two approvals; no amount
        needs a second signature any more. */
-    message: 'Submitted for approval. Your balance is on hold until it is reviewed.',
+    message: 'Pending',
     withdrawalId: result.value.withdrawalId,
     ...about,
   };
