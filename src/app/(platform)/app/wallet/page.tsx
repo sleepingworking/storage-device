@@ -279,53 +279,7 @@ export default async function WalletPage() {
             </Panel>
           ) : null}
 
-          {wallet.pendingWithdrawals.length > 0 ? (
-            <Panel>
-              <PanelHeader
-                title="Awaiting approval"
-                subtitle="These amounts are held on your balance until an operator decides"
-              />
-              <ul className="divide-y divide-line/60">
-                {wallet.pendingWithdrawals.map((withdrawal) => (
-                  <li key={withdrawal.id} className="flex flex-wrap items-center gap-3 py-3">
-                    {/* Which chain this is leaving on is the single most consequential
-                        fact on the row: USDT sent over Tron to an Ethereum address is
-                        gone. It was rendering as the raw id next to a generic clock. */}
-                    <AssetMark
-                      symbol={withdrawal.asset}
-                      glyph={markFor(withdrawal.asset)?.glyph ?? withdrawal.asset.slice(0, 1)}
-                      hue={markFor(withdrawal.asset)?.hue ?? 'var(--chart-1)'}
-                      network={withdrawal.network}
-                      size="xs"
-                    />
-                    <span className="font-mono text-sm text-fg">
-                      {shortenDecimalString(withdrawal.amount)} {tickerFor(withdrawal.asset)}
-                    </span>
-                    <span className="text-2xs text-fg-subtle">
-                      {networkLabelFor(labels, withdrawal.asset, withdrawal.network)} · to{' '}
-                      <span className="font-mono">{withdrawal.destination}</span>
-                    </span>
-                    <span className="ml-auto text-2xs text-fg-subtle">
-                      {formatDate(withdrawal.requestedAt)}
-                    </span>
-                    {/* Always "Pending" now. This used to read "0/2 approvals"
-                        for anything over the dual-control threshold; there is no
-                        threshold, so one signature releases any amount and the
-                        count would say 0/1 on every row. */}
-                    <Badge tone="warn">Pending</Badge>
-                    {/* Every one of these is still pending, so the link reads
-                        "View" rather than "Receipt" — the document it opens heads
-                        itself "Transaction pending" and says it is not one. */}
-                    <ReceiptLink
-                      kind="withdrawal"
-                      recordId={withdrawal.id}
-                      status="pending"
-                    />
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-          ) : null}
+         
 
           <Panel>
             <PanelHeader title="Balances" subtitle="Held on the exchange" />
