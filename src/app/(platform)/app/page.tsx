@@ -245,26 +245,6 @@ export default async function OverviewPage() {
             }
           />
         ) : null}
-
-        {wallet.pendingWithdrawals.length > 0 ? (
-          <NoticeCard
-            tone="neutral"
-            icon={<Clock className="size-4" />}
-            title={``}
-            /* "Held, not moved" is the ledger's own word for it — the funds are
-               reserved and the statement shows no movement until an operator
-               decides. See `docs/architecture.md` §14. */
-            body="The amount is held on your account, not moved."
-            action={
-              <Link
-                href="/app/wallet"
-                className="text-xs font-medium text-brand-soft hover:underline"
-              >
-                Wallet
-              </Link>
-            }
-          />
-        ) : null}
       </div>
 
       {/* ── Tokens ─────────────────────────────────────────────────────────── */}
