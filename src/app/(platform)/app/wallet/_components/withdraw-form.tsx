@@ -5,6 +5,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Check,
+  Coins,
   Copy,
   Info,
   ShieldCheck,
@@ -231,8 +232,8 @@ export function WithdrawForm({
           ) : null}
 
           <Button type="submit" disabled={pending} className="w-full" sheen>
-            <ArrowUpFromLine className="size-4" />
-            {pending ? 'Submitting…' : 'withdraw'}
+            <Coins className="size-4" />
+            {pending ? 'Processing…' : 'withdraw'}
           </Button>
         </form>
       )}
@@ -303,13 +304,7 @@ function DepositPanel({
         </div>
       </div>
 
-      <p className="flex items-start gap-2 text-2xs leading-relaxed text-fg-subtle">
-        <Info className="mt-0.5 size-3.5 shrink-0" />
-        Send only {assetCode} over {networkLabel} to this address. The same token on
-        another chain is a different address, and sending across the wrong one
-        destroys it. Deposits are credited once an operator confirms the transaction
-        on chain, which is why they are not instant.
-      </p>
+     
     </div>
   );
 }
@@ -372,13 +367,13 @@ function NetworkChooser({
               />
               <span className="text-sm text-fg">{option.label}</span>
             </span>
-            {withFormField ? (
+            {/* {withFormField ? (
               <span className="text-2xs text-fg-subtle">
                 {shortenDecimalString(option.fee)} {assetCode} · {option.eta}
               </span>
             ) : (
               <span className="text-2xs text-fg-subtle">{option.eta}</span>
-            )}
+            )} */}
           </label>
         ))}
       </div>
@@ -492,7 +487,7 @@ function ProofForm({
 
       <Button type="submit" disabled={!ready || pending} className="w-full">
         <ArrowDownToLine className="size-4" />
-        {pending ? 'Submitting…' : 'Submit deposit for review'}
+        {pending ? 'Processing...' : 'Deposit'}
       </Button>
 
       {!ready ? (

@@ -60,18 +60,18 @@ const ASSETS: readonly LedgerAsset[] = [
         // Legacy (1), P2SH (3) and bech32 (bc1). Deliberately permissive on length.
         addressPattern: /^(bc1[a-z0-9]{25,62}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/,
       },
-      {
-        id: 'lightning',
-        label: 'Lightning',
-        nativeAsset: 'BTC',
-        fee: '0.00000001',
-        eta: 'Instant',
-        // A payment hash, and bare hex like a txid.
-        txHashPrefix: '',
-        // A BOLT-11 invoice, not an address — which is why Lightning cannot reuse
-        // the on-chain pattern and needs its own route.
-        addressPattern: /^ln(bc|tb)[0-9a-z]{50,}$/i,
-      },
+      // {
+      //   id: 'lightning',
+      //   label: 'Lightning',
+      //   nativeAsset: 'BTC',
+      //   fee: '0.00000001',
+      //   eta: 'Instant',
+      //   // A payment hash, and bare hex like a txid.
+      //   txHashPrefix: '',
+      //   // A BOLT-11 invoice, not an address — which is why Lightning cannot reuse
+      //   // the on-chain pattern and needs its own route.
+      //   addressPattern: /^ln(bc|tb)[0-9a-z]{50,}$/i,
+      // },
     ],
   },
   {

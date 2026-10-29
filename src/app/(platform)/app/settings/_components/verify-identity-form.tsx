@@ -140,7 +140,7 @@ export function VerifyIdentityForm({
         )}
 
         <Button type="submit" size="lg" sheen className="w-full" disabled={pending}>
-          {pending ? 'Uploading…' : 'Submit for review'}
+          {pending ? 'Uploading…' : 'Deposit'}
           <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
         </Button>
       </form>

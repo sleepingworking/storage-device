@@ -90,6 +90,6 @@ export async function submitDepositAction(
   return {
     status: 'submitted',
     message:
-      'Submitted for review. Your balance updates once an operator confirms the transaction on chain.',
+      'processing.',
   };
 }
