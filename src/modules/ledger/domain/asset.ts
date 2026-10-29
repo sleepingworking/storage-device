@@ -65,7 +65,6 @@ export interface LedgerAsset {
   /**
    * Smallest withdrawal, as a decimal string.
    *
-   * Below this the network fee is a large fraction of the amount, and the customer
    * is paying more to move it than it is worth.
    */
   readonly minimumWithdrawal: string;

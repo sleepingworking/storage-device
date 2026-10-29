@@ -25,7 +25,6 @@ export interface WithdrawalSnapshot {
   readonly asset: string;
   /** What the customer receives. */
   readonly amount: Money;
-  /** The network fee, taken on top. Held alongside the amount. */
   readonly fee: Money;
   readonly network: string;
   readonly destination: string;

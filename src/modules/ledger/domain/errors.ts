@@ -148,7 +148,7 @@ export function presentLedgerError(error: LedgerError): string {
     case 'gas-token-required':
       // Says the coin, the chain and what to do with it. A customer who has only
       // ever held USDT has no reason to know that sending it costs something else.
-      return `Insufficient ${error.nativeAsset} to cover ${error.network} network fee.`;
+      return `You do not have enough ${error.nativeAsset} to cover ${error.network} network fee.`;
       // return `Sending ${error.asset} over ${error.network} costs a network fee paid in ${error.nativeAsset}, and you have none. Add some ${error.nativeAsset} to your wallet and try again.`;
     case 'withdrawal-not-found':
       return 'That withdrawal no longer exists.';

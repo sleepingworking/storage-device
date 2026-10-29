@@ -206,11 +206,6 @@ export async function getReceipt(
           mono: true,
         },
         {
-          label: 'Network fee',
-          value: amountText(snapshot.fee, snapshot.asset),
-          mono: true,
-        },
-        {
           ...WITHDRAWAL_TOTAL[snapshot.status],
           value: amountText(total, snapshot.asset),
           mono: true,

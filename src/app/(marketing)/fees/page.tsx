@@ -25,7 +25,6 @@ const FEE_FAQ = [
   { question: 'How is my volume tier calculated?', answer: 'We look at your trailing 30-day taker + maker notional volume in USD, recalculated every hour. Moving up a tier applies immediately; moving down only happens at the daily boundary, so a quiet afternoon never costs you a rate.' },
   { question: 'What is a maker rebate?', answer: `A maker order adds liquidity to the book rather than taking it. At Prime tier your maker fee is negative — ${BRAND.name} pays you 0.005% of the notional, settled daily in the quote currency.` },
   { question: 'Are there hidden spreads?', answer: 'No. The rate you see on the conversion widget is the routed mid-price and the fee is quoted separately. We do not mark up the rate and take a second margin inside it.' },
-  { question: 'What about network fees?', answer: `On-chain withdrawals carry the network fee at cost, shown before you confirm. ${BRAND.name} adds nothing on top and does not round up.` },
 ];
 
 export const metadata: Metadata = {

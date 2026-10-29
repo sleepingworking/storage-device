@@ -132,11 +132,6 @@ export default async function WalletPage() {
 
   return (
     <>
-      <PageHeader
-        title="Wallet"
-        description="Move money in and out. Every withdrawal is reviewed before it leaves; deposits are credited once confirmed."
-      />
-
       {wallet.degraded ? (
         <Notice
           tone="down"

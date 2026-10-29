@@ -199,15 +199,6 @@ export function WithdrawForm({
               placeholder="0.00"
               className="h-12 w-full rounded-lg border border-line bg-surface px-4 font-mono text-sm text-fg placeholder:text-fg-subtle focus:border-line-strong focus:outline-none"
             />
-            {/* The minimum is no longer stated, because it is no longer enforced
-                — any amount above zero is accepted. The network fee stays: it is
-                charged by the chain, not by this platform, and somebody sending
-                dust should be able to see it swallow the transfer. */}
-            {asset && network ? (
-              <span className="mt-1.5 block text-2xs text-fg-subtle">
-                {shortenDecimalString(network.fee)} {asset.ticker} network fee
-              </span>
-            ) : null}
           </label>
 
           {/*
@@ -238,12 +229,6 @@ export function WithdrawForm({
               {state.message}
             </p>
           ) : null}
-
-          <p className="flex items-start gap-2 text-2xs leading-relaxed text-fg-subtle">
-            <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-up" />
-            Every withdrawal is reviewed by an operator before it leaves. Your balance
-            is held, not spent, until that decision.
-          </p>
 
           <Button type="submit" disabled={pending} className="w-full" sheen>
             <ArrowUpFromLine className="size-4" />
