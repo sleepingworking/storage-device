@@ -176,7 +176,7 @@ export default async function TransactionsPage({
         />
       </div>
 
-      {records.transactions.length > 0 ? (
+      {/* {records.transactions.length > 0 ? (
         <Panel className="mb-4">
           <PanelHeader
             title="Deposits and withdrawals"
@@ -192,10 +192,7 @@ export default async function TransactionsPage({
 
               return (
                 <li key={record.id} className="flex flex-wrap items-center gap-3 py-3">
-                  {/* The coin and its chain, for the reason the statement below
-                      carries one: on a list where half the rows are USDT, which
-                      network a request is on is what the reader came to check. */}
-                  <AssetMark
+                    <AssetMark
                     symbol={record.asset}
                     glyph={markFor(record.asset)?.glyph ?? record.asset.slice(0, 1)}
                     hue={markFor(record.asset)?.hue ?? 'var(--chart-1)'}
@@ -211,12 +208,7 @@ export default async function TransactionsPage({
                       {networkLabelFor(labels, record.asset, record.network)} ·{' '}
                       {formatDate(record.occurredAt)}
                     </span>
-                    {/* Under the badge rather than inside it. "Pending" is the word
-                        that has to be readable at a glance; *why* it is pending is
-                        a sentence, and a sentence does not fit in a badge. The
-                        operator's own note wins over the generic hint when there
-                        is one — they know what this particular wait is about. */}
-                    {detail === null ? null : (
+                       {detail === null ? null : (
                       <span className="mt-0.5 block text-2xs text-fg-muted">{detail}</span>
                     )}
                   </span>
@@ -232,12 +224,9 @@ export default async function TransactionsPage({
               );
             })}
           </ul>
-          <p className="mt-4 border-t border-line pt-4 text-2xs leading-relaxed text-fg-subtle">
-            A receipt records one movement on your account. It is not a tax invoice — nothing in
-            this system issues one.
-          </p>
+          
         </Panel>
-      ) : null}
+      ) : null} */}
 
       <Panel>
         <div className="mb-4 flex flex-wrap items-center gap-2">

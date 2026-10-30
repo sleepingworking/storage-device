@@ -45,3 +45,7 @@ next-env.d.ts
 # dependency-cruiser. Delete once nothing needs to be checked against it.
 # /novex/
 /novex-admin/
+sql.sql
+.gitignore
+scripts/db-wipe.ts
+scripts/db-counts.ts
